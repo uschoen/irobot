@@ -5,8 +5,11 @@ Created on 18.08.2017
 '''
 import time.sleep as sleep;
 import RPi.GPIO as GPIO;
+from time import localtime, strftime;
+from datetime import datetime;
+import threading;
 
-class l298n():
+class l298n(threading.Thread):
     '''
     classdocs
     '''
@@ -20,11 +23,11 @@ class l298n():
     cfg={};
     log=False;
     
-    def __init__(self,cfg,logObj=False):
-        '''
-        Constructor
-        '''
-        self.log=logObj;
+    def __init__(self,cfg,logger=False):
+        
+        threading.Thread.__init__(self)
+        
+        self.logger=logger;
         self.cfg=cfg;
         self.log("function","call __init__");
         self.estop();
@@ -147,8 +150,14 @@ class l298n():
         distance=self.distance_impulse;
         self.distance_impulse=0;
         return distance;
-    def log(self,level,msg):
-        '''
-        Constructor
-        '''
+    def log (self,level="unkown",messages="no messages"):
+        if self.logger:
+            dt = datetime.now()
+            conf={}
+            conf['package']=__name__
+            conf['level']=level
+            conf['messages']=str(messages)
+            conf['time']=strftime("%d.%b %H:%M:%S", localtime())
+            conf['microsecond']=dt.microsecond
+            self.logger.write(conf) 
 
