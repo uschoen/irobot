@@ -1,1 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<engine>
+	
+	<motor_left>
+		<typ>l298n</typ>
+		<motor_left>10</motor_left>
+		<motor_right>11</motor_right>
+		<motor_speed>12</motor_speed>
+		<pwm_cycle>100</pwm_cycle>
+		<distance_port>13</distance_port>
+	</motor_left>
+	
+
+</engine>
