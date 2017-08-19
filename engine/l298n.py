@@ -13,103 +13,124 @@ class l298n(threading.Thread):
     '''
     classdocs
     '''
-    speedCurrent=0;
-    speedNext=0;
-    speedNextTemp=0;
-    directionCurrent="forward";
-    directionNext="forward";
-    motorSpeed=False;
     
-    cfg={};
-    log=False;
     
     def __init__(self,cfg,logger=False):
         
         threading.Thread.__init__(self)
         
+        self.speedCurrent=0;
+        self.speedNext=0;
+        self.speedNextTemp=0;
+    
+        self.directionCurrent="forward";
+        self.directionNext="forward";
+        self.motorSpeed=False;
+    
         self.logger=logger;
         self.cfg=cfg;
         self.log("function","call __init__");
-        self.estop();
-        self.direction="forward";
+       
         self.distance_impulse=0;
         
         '''
         GPIO settings
         '''
         ### forward
-        GPIO.setup(self.cfg("motor_left"),GPIO.OUT);
-        GPIO.output(self.cfg("motor_left"),0);
+        GPIO.setup(self.cfg["motor_left"],GPIO.OUT);
+        GPIO.output(self.cfg["motor_left"],0);
         ### reward
-        GPIO.setup(self.cfg("motor_right"),GPIO.OUT);
-        GPIO.output(self.cfg("motor_right"),0);
+        GPIO.setup(self.cfg["motor_right"],GPIO.OUT);
+        GPIO.output(self.cfg["motor_right"],0);
         ### PWM Speed Port
-        GPIO.setup(self.cfg("motor_speed"),GPIO.OUT);
-        self.motorSpeed=GPIO.PWM(self.cfg("motor_speed"),self.cfg("pwm_cycle"));
+        GPIO.setup(self.cfg["motor_speed"],GPIO.OUT);
+        self.motorSpeed=GPIO.PWM(self.cfg["motor_speed"],self.cfg("pwm_cycle"));
         self.motorSpeed.stop();        
-        
-        GPIO.setup(self.cfg("distance_port"),GPIO.IN);
-        GPIO.add_event_detect(self.cfg("distance_port"),GPIO.RISING, callback=self.detect_distance_impulse(),boncetime=10);
-        
-    def detect_distance_impulse(self):
+        ### distance impulse
+        GPIO.setup(self.cfg["distance_port"],GPIO.IN);
+        GPIO.add_event_detect(self.cfg["distance_port"],GPIO.RISING, callback=self.__detectDistanceImpulse(),boncetime=10);
+        self.log("info","l298 is init");
+        return;
+    def __detectDistanceImpulse(self):
         '''
-        Constructor
+        __detectDistanceImpulse
         '''
-        self.log("function","call detect_distance_impulse");
+        self.log("function","call __detectDistanceImpulse");
         self.distance_impulse=self.distance_impulse+1;
         return;
+    
     def run(self):
-        while (1):
-            self.check_direction();
-            self.check_speed();
-            sleep (0.01);
-    def check_direction(self):
         '''
-        Constructor
+        run
+        '''
+        self.log("info","l298 is starting");
+        while (1):
+            self.__checkDirection();
+            self.__checkSpeed();
+            sleep (0.01);
+            
+    def __checkDirection(self):
+        '''
+        check_direction
         '''
         self.log("function","call check_direction");
         if self.directionCurrent<>self.directionNext:
+            self.log("info","current direction is :%s, next deriction is:%s"% (self.directionCurrent,self.directionNext));
             if self.speedCurrent==0:
-                self.setDirection(self.directionNext);
-                self.speedNext=self.speedNextTemp;
+                self.__setDirection(self.directionNext);
+                if self.speedNextTemp>0:
+                    self.speedNext=self.speedNextTemp;
+                    self.speedNextTemp=0;
             else:
-                self.speedNextTemp=self.speedNext;
-                self.speedNext=0;    
-    def setDirection(self,direction):
+                if self.speedNext>0:
+                    self.log("info","can not change direction, set speed from %s to 0" %(self.speedCurrent));
+                    self.speedNextTemp=self.speedNext;
+                    self.speedNext=0;    
+    def __setDirection(self,direction):
         '''
-        Constructor
+        __setDirection
         '''   
-        self.log("function","call setDirection");
+        self.log("function","call __setDirection");
         if direction=="forward":
-            GPIO.output(self.cfg("motor_right"),(1^self.cfg("invert_direction")));
-            GPIO.output(self.cfg("motor_left"),(0^self.cfg("invert_direction")));          
+            GPIO.output(self.cfg["motor_right"],(1^self.cfg["invert_direction"]));
+            GPIO.output(self.cfg["motor_left"],(0^self.cfg["invert_direction"])); 
         else:
-            GPIO.output(self.cfg("motor_right"),(1^self.cfg("invert_direction")));
-            GPIO.output(self.cfg("motor_left"),(0^self.cfg("invert_direction"))); 
+            GPIO.output(self.cfg["motor_right"],(1^self.cfg["invert_direction"]));
+            GPIO.output(self.cfg["motor_left"],(0^self.cfg["invert_direction"])); 
+        self.log("info","set diretion to %s" %(direction));         
         self.directionCurrent=direction;                 
         return;
-        
-    def check_speed(self):
+    def __setPWM(self,speed):
         '''
-        Constructor
+        __setPWM
+        '''
+        self.log("function","call __setPWM");
+        if speed==0:
+            self.motorSpeed.stop();
+            self.log("info","motor stop");
+        else:
+            self.motorSpeed.start(speed);
+            self.log("info","set motor speed to %s"%(speed));  
+        return;  
+    def __checkSpeed(self):
+        '''
+        __check_speed
         ''' 
         self.log("function","call check_speed");
         if self.speedCurrent>self.speedNext:
             self.speedCurrent-1;
-            self.setSpeed(self.speedCurrent);
+            self.log("debug","decrease speed to %s" %(self.speedCurrent));   
+            self.__setPWM(self.speedCurrent);
         elif self.speedCurrent<self.speedNext:
             self.speedCurrent+1;
-            self.setSpeed(self.speedCurrent);
+            self.log("debug","increase speed to %s" %(self.speedCurrent));   
+            self.__setPWM(self.speedCurrent);
         return ;
     def setSpeed(self,speed):
         '''
-        Constructor
+        setSpeed
         '''
         self.log("function","call setSpeed");
-        if speed==0:
-            self.motorSpeed.stop();
-        else:
-            self.motorSpeed.start(speed);
         self.speedNext=speed;
         return;
     def stop(self):   
@@ -129,7 +150,7 @@ class l298n(threading.Thread):
         return;
     def reward(self,speed):
         '''
-        Constructor
+        reward
         '''
         self.log("function","call reward");
         self.speedNext=speed;
@@ -137,14 +158,14 @@ class l298n(threading.Thread):
         return;
     def estop(self):
         '''
-        Constructor
+        estop
         '''
         self.log("function","call estop");
         self.set_speed(0);
         return;
     def getdistance(self):
         '''
-        contructor
+        getdistance
         '''
         self.log("function","call getdistance");
         distance=self.distance_impulse;
